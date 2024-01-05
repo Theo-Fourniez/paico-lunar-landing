@@ -2,4 +2,7 @@ cloudpickle==3.0.0
 Farama-Notifications==0.0.4
 gymnasium==0.29.1
 numpy==1.26.3
+pygame==2.5.2
+swig==4.1.1.post1
 typing_extensions==4.9.0
+ufal.pybox2d==2.3.10.2

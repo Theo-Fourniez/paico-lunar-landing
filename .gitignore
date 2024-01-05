@@ -1,9 +1,8 @@
 lib/
-bin
+bin/
 CMakeLists.txt
 include
 lib
 lib64
 LICENSE*
 pyvenv.cfg
-

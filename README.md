@@ -1,68 +1,14 @@
-SWIG Python Distributions
-=========================
+# Projet lunar lander
+Jeu choisi : https://gymnasium.farama.org/environments/box2d/lunar_lander/
+Date de rendu : 14 mars 
 
-[![PyPI](https://img.shields.io/pypi/v/swig.svg)](https://pypi.org/project/swig)
+## Sujet
+Il vous est demandé seul ou en binôme de prendre en main un jeu pour lequel vous devez créer une IA. L'objectif pour vous est de bien appréhender les règles, les tenants et les aboutissants de stratégies qui pourraient être mises en place.
 
-A project that packages SWIG as a Python package, enabling `swig` to be installed from PyPI:
+Dans un second, sur un oral de 15-20 minutes, vous devrez présenter la solution que vous avez mise en place, et mettre en perspective des stratégies potentielles par rapport aux cours d'AICOI.
 
-```sh
-pip install swig
-```
+La solution développée nous permet de valider que vous avez bien compris le système sur lequel vous tentez de prendre le contrôle.
 
-or used as part of `build-system.requires` in a pyproject.toml file:
+Il n'est pas requis de développer explicitement un des algorithmes vus en cours.
 
-```toml
-[build-system]
-requires = ["swig"]
-```
-
-PyPI package versions will follow the `major.minor.patch` version numbers of SWIG releases.
-
-Binary wheels for Windows, macOS, and Linux for most CPU architectures supported on PyPI are provided. ARM wheels for Raspberry Pi available at https://www.piwheels.org/project/swig/.
-
-[SWIG PyPI Package Homepage](https://github.com/nightlark/swig-pypi)
-
-[SWIG Homepage](http://www.swig.org/)
-
-[SWIG Source Code](https://github.com/swig/swig/)
-
-[SWIG License](https://github.com/swig/swig/blob/master/LICENSE): GPL-3.0-or-later with portions under [LICENSE-UNIVERSITIES](https://github.com/nightlark/swig-pypi/blob/main/LICENSE-UNIVERSITIES) (see [LICENSE-SWIG](https://github.com/nightlark/swig-pypi/blob/main/LICENSE-SWIG) for details)
-
-Installing SWIG
-===============
-
-SWIG can be installed by pip with:
-
-```sh
-pip install swig
-```
-
-or:
-
-```sh
-python -m pip install swig
-```
-
-Building from the source dist package requires internet access in order to download a copy of the SWIG source code.
-
-Using with pipx
-===============
-
-Using `pipx run swig <args>` will run SWIG without any install step, as long as the machine has pipx installed (which includes GitHub Actions runners).
-
-Using with pyproject.toml
-=========================
-
-SWIG can be added to the `build-system.requires` key in a pyproject.toml file for building Python extensions that use SWIG to generate bindings.
-
-```toml
-[build-system]
-requires = ["swig"]
-```
-
-License
-=======
-
-The code for this project is covered by the [Apache License, Version 2.0](http://www.apache.org/licenses/LICENSE-2.0). Source distributions do not include a copy of the SWIG source code or binaries. Binary wheels are covered by the SWIG license (GPLv3), due to their inclusion of a compiled SWIG binary and library files.
-
-SWIG is distributed under the [GNU General Public License v3 or later](https://github.com/swig/swig/blob/master/LICENSE) with portions under the file [LICENSE-UNIVERSITIES](https://github.com/swig/swig/blob/master/LICENSE-UNIVERSITIES). For more information about SWIG, visit [http://www.swig.org](http://www.swig.org/)
+La mise en perspective, en revanche, doit démontrer que vous avez compris au moins un des trois aspects du cours (prise de décision sous incertitude, optimisation, théorie des jeux), et que vous êtes capable de vous projeter sur ça mise en place dans le cadre du projet choisi.

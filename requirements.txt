@@ -6,3 +6,5 @@ pygame==2.5.2
 swig==4.1.1.post1
 typing_extensions==4.9.0
 ufal.pybox2d==2.3.10.2
+matplotlib==3.8.3
+torch==2.2.1

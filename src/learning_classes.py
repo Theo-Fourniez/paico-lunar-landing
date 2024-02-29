@@ -1,4 +1,5 @@
 # a genetic algorithm bot class 
+import json
 import random
 import time
 import numpy as np
@@ -19,15 +20,33 @@ class Bot:
         observation, reward, terminated, truncated, info = self.env.step(self.action)
         return observation, reward, terminated, truncated, info
     
+    def to_json(self):
+        return {
+            "weights": self.weights.tolist()
+        }
+    
+    def read_from_json(self, path):
+        with open(path, "r") as file:
+            obj = json.loads(file.read())
+            self.weights = np.array(obj["weights"])
+
+    def write_to_json(self, path):
+        with open(path, "w") as file:
+            file.write(json.dumps(self.to_json()))
 # a genetic algorithm class
 class GeneticAlgorithm:
-    def __init__(self, env, bot_class: Bot, population_size=100, generations=1000):
+    def __init__(self, env, bot_class: Bot, population_size=100, generations=1000, mutation_probability=0.1, survivor_number=30, new_crossover_bots=70, starting_population=None):
+        if type(starting_population) is not list and starting_population is not None:
+            raise ValueError("starting_population should be a list of Bot objects or None")
         self.env = env
         self.bot_class = bot_class
-        self.population_size = population_size
+        self.population_size = population_size if starting_population is None else len(starting_population)
         self.generations = generations
-        self.population = [self.bot_class(self.env) for _ in range(self.population_size)]
-        self.scores = [0 for _ in range(self.population_size)]
+        self.population = [bot_class(env) for _ in range(population_size)] if starting_population is None else starting_population
+        self.scores = np.zeros(self.population_size)
+        self.mutation_probability = mutation_probability
+        self.survivor_number = survivor_number
+        self.new_crossover_bots = new_crossover_bots
 
     def run(self):
         print(f"Running genetic algorithm with {self.population_size} bots for {self.generations} generations.")
@@ -39,27 +58,48 @@ class GeneticAlgorithm:
                     action = bot.act(observation)
                     self.scores[i] += reward
                     if terminated or truncated:
+                        #self.env.reset()
                         break
-            print(f"Generation {generation} finished with average score: {np.mean(self.scores)}")
+            mean_score_of_generation = np.mean(self.scores)
+            print(f"Generation {generation} finished with average score: {mean_score_of_generation}")
+            if mean_score_of_generation >= 101:
+                print("🎉 MEAN SCORE IS OVER 100 !!!!!!!!!!!! 🎉")
+                self.write_json_to_file(f"genetic_algorithm_{time.time()}.json")
+            if self.scores.max() >= 100:
+                print(f"Some bot has reached a good score of {self.scores.max()}")
+                max_index = np.argmax(self.scores)
+                best_bot = self.population[max_index]
+                best_bot.write_to_json(f"best_bot_{time.time()}.json")
             self.evolve()
         self.env.close()
-    def crossover(self, bot1, bot2):
-        bot = self.bot_class(self.env)
+    
+    # the crossover should return two bots
+    def one_point_crossover(self, bot1, bot2):
+        result_bot1 = bot1
+        result_bot2 = bot2
+        crossover_point = random.randint(0, len(bot1.weights))
         for i in range(len(bot1.weights)):
-            bot.weights[i] = bot1.weights[i] if random.random() > 0.5 else bot2.weights[i]
-        return bot 
-    def evolve(self):
-        MUTATION_PROBABILITY = 0.1
-        SURVIVOR_NUMBER = 20
-        NEW_CROSSOVER_BOTS = 80
+            if i > crossover_point:
+                result_bot1.weights[i] = bot2.weights[i]
+                result_bot2.weights[i] = bot1.weights[i]
+        return result_bot1, result_bot2
+    
+    def random_crossover(self, bot1, bot2):
+        result_bot1 = bot1
+        result_bot2 = bot2
+        for i in range(len(bot1.weights)):
+            if random.random() > 0.5:
+                result_bot1.weights[i] = bot2.weights[i]
+                result_bot2.weights[i] = bot1.weights[i]
+        return result_bot1, result_bot2
 
+    def evolve(self):
         sorted_indexes = np.argsort(self.scores)
-        best_scores = [self.scores[i] for i in sorted_indexes]
 
         sorted_population = [self.population[i] for i in sorted_indexes]
 
         # select the 20 best bots 
-        best_bots = sorted_population[:SURVIVOR_NUMBER]
+        best_bots = sorted_population[:self.survivor_number]
 
         # create 80 new bots from the best 20
         # new_bots = [self.crossover(best_bots[i], best_bots[j]) for i in range(len(best_bots)) for j in range(i + 1, len(best_bots))]
@@ -67,11 +107,11 @@ class GeneticAlgorithm:
         bot_count = 0
         for i in range(len(best_bots)):
             for j in range(i + 1, len(best_bots)):
-                new_bots.append(self.crossover(best_bots[i], best_bots[j]))
-                bot_count += 1
-                if bot_count >= NEW_CROSSOVER_BOTS:
+                new_bots.extend(self.random_crossover(best_bots[i], best_bots[j]))
+                bot_count += 2
+                if bot_count >= self.new_crossover_bots:
                     break
-            if bot_count >= NEW_CROSSOVER_BOTS:
+            if bot_count >= self.new_crossover_bots:
                 break
 
         best_bots.extend(new_bots)
@@ -79,10 +119,41 @@ class GeneticAlgorithm:
         self.population = best_bots
         self.population_size = len(self.population)
         # reset the scores
-        self.scores = [0 for _ in range(self.population_size)]
+        self.scores = np.zeros(self.population_size)
 
-        # mutate the genes of the next generation
         for bot in self.population:
-            for i in range(len(bot.weights)):
-                if random.random() < MUTATION_PROBABILITY:
-                    bot.weights[i] = bot.weights[i] + random.random()
+            bot.weights = self.mutate_matrix(bot.weights, self.mutation_probability)
+
+    def mutate_matrix(self, matrix, mutation_rate):
+        mutated_matrix = np.copy(matrix)  # Create a copy of the original matrix
+        mutation_mask = np.random.rand(*matrix.shape) < mutation_rate  # Generate a boolean mask for mutation
+        mutation_values = np.random.uniform(0.5, 1.5, size=matrix.shape)  # Generate random mutation values
+        mutated_matrix[mutation_mask] *= mutation_values[mutation_mask]  # Apply mutations
+        return mutated_matrix
+
+    def to_json(self):
+        obj = {
+            "population_size": self.population_size,
+            "generations": self.generations,
+            "population": [bot.weights.tolist() for bot in self.population],
+            "avg_score": np.mean(self.scores),
+            "mutation_probability": self.mutation_probability,
+            "survivor_number": self.survivor_number,
+            "new_crossover_bots": self.new_crossover_bots
+        }
+        return obj
+    
+    def read_from_json(self, path):
+        with open(path, "r") as file:
+            obj = json.loads(file.read())
+            self.population_size = obj["population_size"]
+            self.generations = obj["generations"]
+            self.population = [Bot(self.env) for weights in obj["population"]]
+            self.scores = [0 for _ in range(self.population_size)]
+            self.mutation_probability = obj["mutation_probability"]
+            self.survivor_number = obj["survivor_number"]
+            self.new_crossover_bots = obj["new_crossover_bots"]
+    
+    def write_json_to_file(self, path):
+        with open(path, "w") as file:
+            file.write(json.dumps(self.to_json()))

@@ -24,7 +24,6 @@ def run_random_agent():
 def run_genetic_algorithm():
     genetic_algorithm = GeneticAlgorithm(env, Bot)
     genetic_algorithm.run()
-    print(genetic_algorithm.population)
     print("Terminating environment")
 
 run_genetic_algorithm()

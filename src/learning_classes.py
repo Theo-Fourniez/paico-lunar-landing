@@ -4,6 +4,7 @@ import random
 import time
 import numpy as np
 import gymnasium as gym
+import os
 
 class Bot:
     def __init__(self, env: gym.Env):
@@ -31,8 +32,18 @@ class Bot:
             self.weights = np.array(obj["weights"])
 
     def write_to_json(self, path):
-        with open(path, "w") as file:
+        # Write the object's content to a JSON file in a folder
+        folder_path = "out" 
+        file_name = f"{path}.json"  
+        file_path = os.path.join(folder_path, file_name)
+
+        # Create the folder if it doesn't exist
+        os.makedirs(folder_path, exist_ok=True)
+
+        with open(file_path, "w") as file:
             file.write(json.dumps(self.to_json()))
+            
+            
 # a genetic algorithm class
 class GeneticAlgorithm:
     def __init__(self, env, bot_class: Bot, population_size=100, generations=1000, mutation_probability=0.1, survivor_number=30, new_crossover_bots=70, starting_population=None):

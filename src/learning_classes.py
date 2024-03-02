@@ -65,11 +65,11 @@ class GeneticAlgorithm:
             for i in range(self.population_size):
                 bot = self.population[i]
                 for _ in range(5000):
-                    observation, reward, terminated, truncated, info = self.env.step(bot.action)
+                    observation, reward, terminated, truncated, info = self.bot_class.step(bot)
                     action = bot.act(observation)
                     self.scores[i] += reward
                     if terminated or truncated:
-                        #self.env.reset()
+                        self.env.reset()
                         break
             mean_score_of_generation = np.mean(self.scores)
             print(f"Generation {generation} finished with average score: {mean_score_of_generation}")

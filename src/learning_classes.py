@@ -64,15 +64,13 @@ class GeneticAlgorithm:
         for generation in range(self.generations):
             for i in range(self.population_size):
                 bot = self.population[i]
-                for _ in range(5000):
-                    observation, reward, terminated, truncated, info = self.bot_class.step(bot)
-                    action = bot.act(observation)
-                    self.scores[i] += reward
-                    if terminated or truncated:
-                        self.env.reset()
-                        break
+                #print(f"Bot {i} is playing")
+                total_reward = self.play_bot(bot)
+                self.scores[i] += total_reward
+
             mean_score_of_generation = np.mean(self.scores)
             print(f"Generation {generation} finished with average score: {mean_score_of_generation}")
+
             if mean_score_of_generation >= 101:
                 print("🎉 MEAN SCORE IS OVER 100 !!!!!!!!!!!! 🎉")
                 self.write_json_to_file(f"genetic_algorithm_{time.time()}.json")
@@ -83,6 +81,17 @@ class GeneticAlgorithm:
                 best_bot.write_to_json(f"best_bot_{time.time()}.json")
             self.evolve()
         self.env.close()
+
+    def play_bot(self, bot):
+        total_reward = 0
+        for _ in range(5000):
+            observation, reward, terminated, truncated, info = bot.step()
+            #bot.act(observation)
+            total_reward += reward
+            if terminated or truncated:
+                self.env.reset()
+                break
+        return total_reward
     
     # the crossover should return two bots
     def one_point_crossover(self, bot1, bot2):

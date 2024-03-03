@@ -5,6 +5,7 @@ import time
 import numpy as np
 import gymnasium as gym
 import os
+import matplotlib.pyplot as plt
 
 class Bot:
     def __init__(self, env: gym.Env):
@@ -61,14 +62,16 @@ class GeneticAlgorithm:
 
     def run(self):
         print(f"Running genetic algorithm with {self.population_size} bots for {self.generations} generations.")
+        generation_scores = []
+
         for generation in range(self.generations):
             for i in range(self.population_size):
                 bot = self.population[i]
-                #print(f"Bot {i} is playing")
                 total_reward = self.play_bot(bot)
                 self.scores[i] += total_reward
 
             mean_score_of_generation = np.mean(self.scores)
+            generation_scores.append(mean_score_of_generation)
             print(f"Generation {generation} finished with average score: {mean_score_of_generation}")
 
             if mean_score_of_generation >= 101:
@@ -80,13 +83,16 @@ class GeneticAlgorithm:
                 best_bot = self.population[max_index]
                 best_bot.write_to_json(f"best_bot_{time.time()}.json")
             self.evolve()
+
+        # Plotting
+        self.plot_generation_scores(generation_scores)
         self.env.close()
 
     def play_bot(self, bot):
         total_reward = 0
         for _ in range(5000):
             observation, reward, terminated, truncated, info = bot.step()
-            #bot.act(observation)
+            bot.act(observation)
             total_reward += reward
             if terminated or truncated:
                 self.env.reset()
@@ -177,3 +183,12 @@ class GeneticAlgorithm:
     def write_json_to_file(self, path):
         with open(path, "w") as file:
             file.write(json.dumps(self.to_json()))
+            
+    def plot_generation_scores(self, generation_scores):
+        generations = range(self.generations)
+        plt.plot(generations, generation_scores, label='Average Score')
+        plt.xlabel('Generation')
+        plt.ylabel('Average Score')
+        plt.title('Genetic Algorithm Performance')
+        plt.legend()
+        plt.show()

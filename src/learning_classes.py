@@ -122,76 +122,34 @@ class GeneticAlgorithm:
 
     def evolve(self):
         sorted_indexes = np.argsort(self.scores)
+
         sorted_population = [self.population[i] for i in sorted_indexes]
 
-        # Choisissez une stratégie de crossover et de mutation basée sur la performance
-        crossover_strategy, mutation_rate = self.select_strategy()
+        # select the 20 best bots 
+        best_bots = sorted_population[:self.survivor_number]
 
-        # sélectionnez les meilleurs individus en fonction de la stratégie de crossover
-        best_bots = self.select_best(sorted_population, crossover_strategy)
-
-        # Créez de nouveaux bots en utilisant la stratégie de crossover sélectionnée
-        new_bots = self.perform_crossover(best_bots, crossover_strategy)
-
-        # Ajoutez les nouveaux bots à la population
-        self.population = best_bots + new_bots
-        self.population_size = len(self.population)
-
-        # Réinitialisez les scores
-        self.scores = np.zeros(self.population_size)
-
-        # Mutations basées sur la performance
-        for i, bot in enumerate(self.population):
-            bot.weights = self.mutate_matrix(bot.weights, mutation_rate[i])
-
-        # Vérifiez si aucun bot n'améliore le score et relancez si nécessaire
-        if np.max(self.scores) <= 0:
-            print("No bot improves the score. Restarting...")
-            self.reset_population()
-
-    # Ajoutez cette nouvelle méthode reset_population à votre classe
-    def reset_population(self):
-        # Réinitialisez la population avec de nouveaux bots
-        self.population = [self.bot_class(self.env) for _ in range(self.population_size)]
-            
-    def perform_crossover(self, best_bots, strategy):
-     # Créez de nouveaux bots en utilisant la stratégie de crossover sélectionnée
+        # create 80 new bots from the best 20
+        # new_bots = [self.crossover(best_bots[i], best_bots[j]) for i in range(len(best_bots)) for j in range(i + 1, len(best_bots))]
         new_bots = []
+        bot_count = 0
         for i in range(len(best_bots)):
             for j in range(i + 1, len(best_bots)):
-                if strategy == "random":
-                    new_bots.extend(self.random_crossover(best_bots[i], best_bots[j]))
-                elif strategy == "best":
-                    new_bots.extend(self.one_point_crossover(best_bots[i], best_bots[j]))
-                else:
-                    raise ValueError("Unknown strategy")
-        return new_bots
+                new_bots.extend(self.random_crossover(best_bots[i], best_bots[j]))
+                bot_count += 2
+                if bot_count >= self.new_crossover_bots:
+                    break
+            if bot_count >= self.new_crossover_bots:
+                break
 
-        
-    def select_best(self, sorted_population, strategy):
-        # Sélectionnez les meilleurs individus en fonction de la stratégie
-        if strategy == "random":
-            return sorted_population[:self.survivor_number]
-        elif strategy == "best":
-            return sorted_population[:int(self.survivor_number * 0.8)]  # Garder les 80% meilleurs
-        else:
-            raise ValueError("Unknown strategy")
-        
-    def select_strategy(self):
-    # Sélectionnez la stratégie de crossover en fonction de la performance
-        mean_score = np.mean(self.scores)
-        if mean_score < self.prev_mean_score:
-            crossover_strategy = "random"  # Revenir en arrière ou essayer une autre voie
-        else:
-            crossover_strategy = "best"  # Garder les seuls qui font augmenter le score
+        best_bots.extend(new_bots)
+        # add the new bots to the population
+        self.population = best_bots
+        self.population_size = len(self.population)
+        # reset the scores
+        self.scores = np.zeros(self.population_size)
 
-        # Sélectionnez la mutation en fonction de la performance
-        mutation_rate = np.clip(self.scores / (mean_score + 1e-8), 0.1, 0.9)  # Plus le score augmente, plus la mutation est élevée
-
-        # Mettez à jour le score moyen précédent
-        self.prev_mean_score = mean_score
-
-        return crossover_strategy, mutation_rate
+        for bot in self.population:
+            bot.weights = self.mutate_matrix(bot.weights, self.mutation_probability)
 
     def mutate_matrix(self, matrix, mutation_rate, mutation_range=(0.15, 1.5), max_distance=0.5):
         while True:

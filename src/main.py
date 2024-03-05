@@ -27,7 +27,7 @@ def run_genetic_algorithm(env, bot, population_size=100, generations=1000, mutat
     return genetic_algorithm
 
 def run_default_genetic_algorithm():
-    genetic_algorithm = GeneticAlgorithm(env, Bot, generations=100, population_size=100, survivor_number=35, new_crossover_bots=65, mutation_probability=0.15)
+    genetic_algorithm = GeneticAlgorithm(env, Bot, generations=1000, population_size=100, survivor_number=35, new_crossover_bots=65, mutation_probability=0.15)
     genetic_algorithm.run()
     return genetic_algorithm
 

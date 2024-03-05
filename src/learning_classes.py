@@ -11,7 +11,7 @@ class Bot:
     def __init__(self, env: gym.Env):
         self.env = env
         self.action = 0
-        self.weights = np.random.rand(8, 4) # 8 observations, 4 actions TODO : change this to be dynamic
+        self.weights = np.random.uniform(0, 1, size=(8, 4)) # 8 observations, 4 actions TODO : change this to be dynamic
 
     def act(self, observation):
         result_action_matrix = observation @ self.weights # matrix multiplication
@@ -47,7 +47,7 @@ class Bot:
             
 # a genetic algorithm class
 class GeneticAlgorithm:
-    def __init__(self, env, bot_class: Bot, population_size=100, generations=1000, mutation_probability=0.1, survivor_number=30, new_crossover_bots=70, starting_population=None):
+    def __init__(self, env, bot_class: Bot, population_size=100, generations=30, mutation_probability=0.15, survivor_number=30, new_crossover_bots=70, starting_population=None):
         if type(starting_population) is not list and starting_population is not None:
             raise ValueError("starting_population should be a list of Bot objects or None")
         self.env = env
@@ -59,12 +59,13 @@ class GeneticAlgorithm:
         self.mutation_probability = mutation_probability
         self.survivor_number = survivor_number
         self.new_crossover_bots = new_crossover_bots
-        self.prev_mean_score = 0
+        self.prev_scores = 0
+        self.prev_bots = None
 
     def run(self):
         print(f"Running genetic algorithm with {self.population_size} bots for {self.generations} generations.")
         generation_scores = []
-
+        max_mutation_distance = 0.5
         for generation in range(self.generations):
             for i in range(self.population_size):
                 bot = self.population[i]
@@ -80,10 +81,26 @@ class GeneticAlgorithm:
                 self.write_json_to_file(f"genetic_algorithm_{time.time()}.json")
             if self.scores.max() >= 100:
                 print(f"Some bot has reached a good score of {self.scores.max()}")
-                max_index = np.argmax(self.scores)
-                best_bot = self.population[max_index]
-                best_bot.write_to_json(f"best_bot_{time.time()}.json")
-            self.evolve()
+
+            if generation > 0 and mean_score_of_generation < np.mean(self.prev_scores):
+                print("Generation is getting dumber, adjusting mutation rate")
+                max_mutation_distance += 0.1 if mean_score_of_generation < -200 else 0.05
+                max_mutation_distance = min(max_mutation_distance, 0.3)
+            else:
+                max_mutation_distance -= 0.02 if mean_score_of_generation > -200 else 0.05
+                max_mutation_distance = max(max_mutation_distance, 0.01)
+            
+            print(f"max mutation distance: {max_mutation_distance}")
+            # if the generation is getting dumber, revert to the previous generation and try again
+            if generation > 0 and mean_score_of_generation < np.mean(self.prev_scores):
+                print("Generation is getting dumber, reverting to previous generation")
+                self.population = self.prev_bots
+                self.scores = self.prev_scores
+                continue
+            else:
+                self.prev_bots = self.population
+                self.prev_scores = self.scores
+                self.evolve(max_mutation_distance)
 
         # Plotting
         self.plot_generation_scores(generation_scores)
@@ -120,14 +137,34 @@ class GeneticAlgorithm:
                 result_bot2.weights[i] = bot1.weights[i]
         return result_bot1, result_bot2
 
-    def evolve(self):
+    def evolve(self, max_mutation_distance=0.5):
+        new_population = []
+
         sorted_indexes = np.argsort(self.scores)
+        sorted_prev_indexes = np.argsort(self.prev_scores)   
+        new_scores = []
 
-        sorted_population = [self.population[i] for i in sorted_indexes]
+        for elem in sorted_indexes:
+            print(self.scores[elem])
+        if len(self.scores) != len(self.prev_scores):
+            print("ERROR: sorted indexes and sorted prev indexes are not the same length")
+        else:
+            for i in range(len(sorted_indexes)):
+                if self.prev_scores[sorted_prev_indexes[i]] > self.scores[sorted_indexes[i]]:
+                    new_population.append(self.prev_bots[sorted_prev_indexes[i]])
+                    new_scores.append(self.prev_scores[sorted_prev_indexes[i]])
+                else:
+                    new_population.append(self.population[sorted_indexes[i]])
+                    new_scores.append(self.prev_scores[sorted_prev_indexes[i]])
 
+        
+        sorted_population = new_population
+        
         # select the 20 best bots 
-        best_bots = sorted_population[:self.survivor_number]
-
+        best_bots = sorted_population[self.new_crossover_bots:]
+        best_scores = new_scores[self.new_crossover_bots:]
+        print(best_scores)
+        
         # create 80 new bots from the best 20
         # new_bots = [self.crossover(best_bots[i], best_bots[j]) for i in range(len(best_bots)) for j in range(i + 1, len(best_bots))]
         new_bots = []
@@ -147,11 +184,11 @@ class GeneticAlgorithm:
         self.population_size = len(self.population)
         # reset the scores
         self.scores = np.zeros(self.population_size)
-
         for bot in self.population:
-            bot.weights = self.mutate_matrix(bot.weights, self.mutation_probability)
+            bot.weights = self.mutate_matrix(bot.weights, self.mutation_probability, max_distance=max_mutation_distance)
 
-    def mutate_matrix(self, matrix, mutation_rate, mutation_range=(0.15, 1.5), max_distance=0.5):
+    def mutate_matrix(self, matrix, mutation_rate, mutation_range=(0.05, 0.15), max_distance=0.5):
+        #print(f"Mutating matrix with mutation rate {mutation_rate} and mutation range {mutation_range} and max distance {max_distance}")
         while True:
             mutated_matrix = np.copy(matrix)
             mutation_mask = np.random.rand(*matrix.shape) < mutation_rate

@@ -68,6 +68,8 @@ class GeneticAlgorithm:
         print(f"Running genetic algorithm with {self.population_size} bots for {self.generations} generations.")
         generation_scores = []
         for generation in range(self.generations):
+            if generation > 0:
+                self.prev_bots = self.population.copy()
             for i in range(len(self.population)): # for each bot calculate fitness (= total reward)
                 bot = self.population[i]
                 total_reward = self.play_bot(bot)
@@ -78,7 +80,6 @@ class GeneticAlgorithm:
             scores_of_generation = [bot.score for bot in self.population]
             mean_score_of_generation = np.mean(scores_of_generation)
             generation_scores.append(mean_score_of_generation)
-            print(scores_of_generation)
             print(f"Generation {generation} finished with average score: {mean_score_of_generation}")
 
             if mean_score_of_generation >= 101:
@@ -88,11 +89,11 @@ class GeneticAlgorithm:
                 print(f"Some bot has reached a good score of {max(scores_of_generation)}")
 
             mean_score_of_prev_generation = np.mean([bot.score for bot in self.prev_bots]) if generation > 0 else -999999
-            if generation > 0 and mean_score_of_generation < mean_score_of_prev_generation:
-                print(f"Regressing bad generation ...")
-                self.population = self.prev_bots.copy()
-            
-            self.prev_bots = self.population.copy()
+            if generation > 0:
+                print(f"Current generation avg = {mean_score_of_generation} | Prev generation avg = {mean_score_of_prev_generation}")
+                if mean_score_of_generation < mean_score_of_prev_generation: # doesn't work always equal values
+                    print(f"Regressing bad generation ...")
+                    self.population = self.prev_bots.copy()
 
             self.evolve()
                         
@@ -160,9 +161,6 @@ class GeneticAlgorithm:
         for i in range(len(scores)):
             previous_probability = previous_probability + (scores[i] / sum_of_fitness)
             probabilities.append(previous_probability)
-        for j in range(len(probabilities)):
-            #print(f"bot : {scores[j]} has {probabilities[j]} % chance")
-            pass
         return probabilities
     # think it works
     def roulette_select_n_bots(self, bots, n):
@@ -179,44 +177,21 @@ class GeneticAlgorithm:
                     break
         return selected
     def evolve(self):
-        new_population = []
         # selection, keep the best scoring bots of the previous and cur gen
-        """
-        if self.prev_bots is not None:
-            if len(self.population) != len(self.prev_bots):
-                print("Cant compare the previous and current generation since they are not same size")
-            prev_bots_scores = [ bot.score for bot in self.prev_bots ]
-            current_bots_scores = [ bot.score for bot in self.population ]
-
-            new_bots_scores = []
-            print(f"Selecting old ({np.mean(prev_bots_scores)}) vs current bots({np.mean(current_bots_scores)})")
-            # selection of the best from prev gen x cur gen
-            for i in range(len(prev_bots_scores)):
-                if prev_bots_scores[i] > current_bots_scores[i]:
-                    new_population.append(self.prev_bots[i])
-                    new_bots_scores.append(self.prev_bots[i].score)
-                else:
-                    new_population.append(self.population[i])
-                    new_bots_scores.append(self.population[i].score)
-            if np.mean([bot.score for bot in self.population]) > np.mean(new_bots_scores): # mean score of the prev gen is better than the current gen
-                print("mean score of the prev gen is better than the new selected gen (best of prev gen + best of cur gen)")
-                return
-            self.population = new_population
-
-        self.population_size = len(self.population)
-        """
         survivors = self.roulette_select_n_bots(self.population, self.survivor_number)
-        elites = [ bot for bot in self.population if bot.score > 0 ]
+        elites = [ bot for bot in self.population if bot.score > 200 ]
+        if(len(elites) > 0):
+            print(f"Kept {len(elites)} elites (> than 200 score)")
+        
         survivors.extend(elites)
-        print(f"{len(survivors)} survived the roulette")
+        print(f"{len(survivors)} survived the roulette or are elites, crossovering")
 
-        print(f"Best {len(survivors)} choosen, crossovering")
         for i in range(len(survivors)):
             for j in range(1, len(survivors)-1):
                 (new_bot_1, new_bot_2) = self.random_crossover(survivors[i], survivors[j])
                 if len(survivors) + 1 > self.new_crossover_bots + self.survivor_number:
                     break
-                new_population.append(new_bot_1)
+                survivors.append(new_bot_1)
                 if len(survivors) + 1 > self.new_crossover_bots + self.survivor_number:
                     break
                 survivors.append(new_bot_2)
@@ -230,8 +205,7 @@ class GeneticAlgorithm:
         for bot in self.population:
             bot.weights = self.mutate_matrix(bot.weights, self.mutation_probability)
 
-    def mutate_matrix(self, matrix, mutation_rate, mutation_range=(0.25, 2), max_distance=0.3):
-        #print(f"Mutating matrix with mutation rate {mutation_rate} and mutation range {mutation_range} and max distance {max_distance}")
+    def mutate_matrix(self, matrix, mutation_rate, mutation_range=(0.25, 2), max_distance=0.4):
         while True:
             mutated_matrix = np.copy(matrix)
             mutation_mask = np.random.rand(*matrix.shape) < mutation_rate

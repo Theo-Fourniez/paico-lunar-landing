@@ -152,7 +152,9 @@ class GeneticAlgorithm:
         for i in range(len(scores)):
             scores[i] = scores[i] + abs_min_score
         return scores
-            
+    
+    # selection function
+    # source : https://en.wikipedia.org/wiki/Fitness_proportionate_selection
     def calculate_roulette_probabilities(self, bots):
         scores = self.normalize_scores([bot.score for bot in bots])
         sum_of_fitness = sum(scores)

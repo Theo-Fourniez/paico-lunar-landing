@@ -8,11 +8,12 @@ import os
 import matplotlib.pyplot as plt
 
 class Bot:
-    def __init__(self, env: gym.Env):
+    def __init__(self, env: gym.Env, generation):
         self.env = env
         self.action = 0
         self.weights = np.random.uniform(0, 1, size=(8, 4)) # 8 observations, 4 actions TODO : change this to be dynamic
         self.score = 0
+        self.generation = generation
 
     def act(self, observation):
         result_action_matrix = observation @ self.weights # matrix multiplication
@@ -54,7 +55,8 @@ class GeneticAlgorithm:
         self.bot_class = bot_class
         self.population_size = population_size if starting_population is None else len(starting_population)
         self.generations = generations
-        self.population = [bot_class(env) for _ in range(population_size)] if starting_population is None else starting_population
+        self.population = {i + 1: bot_class(env, generation=0) if starting_population is None else starting_population[i] for i in range(self.population_size)}
+        self.generation_map = {bot: 1 for bot in self.population}
         self.scores = np.zeros(self.population_size)
         self.mutation_probability = mutation_probability
         self.survivor_number = survivor_number
@@ -64,20 +66,23 @@ class GeneticAlgorithm:
     def reset_population_score(self):
         for bot in self.population:
             bot.score = 0
+    
     def run(self):
         print(f"Running genetic algorithm with {self.population_size} bots for {self.generations} generations.")
         generation_scores = []
+        
         for generation in range(self.generations):
             if generation > 0:
                 self.prev_bots = self.population.copy()
-            for i in range(len(self.population)): # for each bot calculate fitness (= total reward)
-                bot = self.population[i]
+
+            for i, bot in self.population.items():  # Iterating through the dictionary
                 total_reward = self.play_bot(bot)
                 bot.score = total_reward
 
-            self.population = self.sort_bots_by_score(self.population)
+            # Sorting the dictionary based on bot scores
+            self.population = dict(sorted(self.population.items(), key=lambda x: x[1].score, reverse=True))
 
-            scores_of_generation = [bot.score for bot in self.population]
+            scores_of_generation = [bot.score for bot in self.population.values()]
             mean_score_of_generation = np.mean(scores_of_generation)
             generation_scores.append(mean_score_of_generation)
             print(f"Generation {generation} finished with average score: {mean_score_of_generation}")
@@ -88,20 +93,19 @@ class GeneticAlgorithm:
             if max(scores_of_generation) >= 100:
                 print(f"Some bot has reached a good score of {max(scores_of_generation)}")
 
-            mean_score_of_prev_generation = np.mean([bot.score for bot in self.prev_bots]) if generation > 0 else -999999
+            mean_score_of_prev_generation = np.mean([bot.score for bot in self.prev_bots.values()]) if generation > 0 else -999999
             if generation > 0:
                 print(f"Current generation avg = {mean_score_of_generation} | Prev generation avg = {mean_score_of_prev_generation}")
-                if mean_score_of_generation < mean_score_of_prev_generation: # doesn't work always equal values
+                if mean_score_of_generation < mean_score_of_prev_generation:
                     print(f"Regressing bad generation ...")
-                    self.population = self.prev_bots.copy()
 
             self.evolve()
-                        
             self.reset_population_score()
 
         # Plotting
         self.plot_generation_scores(generation_scores)
         self.env.close()
+
 
     def play_bot(self, bot):
         total_reward = 0
@@ -115,9 +119,9 @@ class GeneticAlgorithm:
         return total_reward
     
     # the crossover should return two bots
-    def one_point_crossover(self, bot1, bot2):
-        result_bot1 = Bot(bot1.env)
-        result_bot2 = Bot(bot2.env)
+    def one_point_crossover(self, bot1, bot2, generation):
+        result_bot1 = Bot(bot1.env, generation)
+        result_bot2 = Bot(bot2.env, generation)
         crossover_point = random.randint(0, len(bot1.weights))
         for i in range(len(bot1.weights)):
             if i > crossover_point:
@@ -128,9 +132,9 @@ class GeneticAlgorithm:
                 result_bot2.weights[i] = bot2.weights[i]
         return result_bot1, result_bot2
     
-    def random_crossover(self, bot1, bot2):
-        result_bot1 = Bot(bot1.env)
-        result_bot2 = Bot(bot2.env)
+    def random_crossover(self, bot1, bot2, generation):
+        result_bot1 = Bot(bot1.env, generation)
+        result_bot2 = Bot(bot2.env,generation)
         for i in range(len(bot1.weights)):
             if random.random() > 0.5:
                 result_bot1.weights[i] = bot2.weights[i]
@@ -190,7 +194,7 @@ class GeneticAlgorithm:
 
         for i in range(len(survivors)):
             for j in range(1, len(survivors)-1):
-                (new_bot_1, new_bot_2) = self.random_crossover(survivors[i], survivors[j])
+                (new_bot_1, new_bot_2) = self.random_crossover(survivors[i], survivors[j], generation=survivors[i].generation)
                 if len(survivors) + 1 > self.new_crossover_bots + self.survivor_number:
                     break
                 survivors.append(new_bot_1)

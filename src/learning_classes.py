@@ -47,7 +47,7 @@ class Bot:
             
 # a genetic algorithm class
 class GeneticAlgorithm:
-    def __init__(self, env, bot_class: Bot, population_size=100, generations=100, mutation_probability=0.15, survivor_number=40, new_crossover_bots=60, starting_population=None):
+    def __init__(self, env, bot_class: Bot, population_size=200, generations=100, mutation_probability=0.15, survivor_number=40, new_crossover_bots=160, starting_population=None):
         if type(starting_population) is not list and starting_population is not None:
             raise ValueError("starting_population should be a list of Bot objects or None")
         self.env = env
@@ -68,7 +68,6 @@ class GeneticAlgorithm:
         print(f"Running genetic algorithm with {self.population_size} bots for {self.generations} generations.")
         generation_scores = []
         for generation in range(self.generations):
-            self.prev_bots = self.population.copy()
             for i in range(len(self.population)): # for each bot calculate fitness (= total reward)
                 bot = self.population[i]
                 total_reward = self.play_bot(bot)
@@ -88,10 +87,12 @@ class GeneticAlgorithm:
             if max(scores_of_generation) >= 100:
                 print(f"Some bot has reached a good score of {max(scores_of_generation)}")
 
-            mean_score_of_prev_generation = np.mean([bot.score for bot in self.prev_bots])
+            mean_score_of_prev_generation = np.mean([bot.score for bot in self.prev_bots]) if generation > 0 else -999999
             if generation > 0 and mean_score_of_generation < mean_score_of_prev_generation:
                 print(f"Regressing bad generation ...")
                 self.population = self.prev_bots.copy()
+            
+            self.prev_bots = self.population.copy()
 
             self.evolve()
                         
@@ -205,27 +206,26 @@ class GeneticAlgorithm:
         self.population_size = len(self.population)
         """
         survivors = self.roulette_select_n_bots(self.population, self.survivor_number)
-        elites = [ for bot in self.population if bot.score > 0 ]
+        elites = [ bot for bot in self.population if bot.score > 0 ]
+        survivors.extend(elites)
         print(f"{len(survivors)} survived the roulette")
-        print(f"Crossovering with population len {len(self.population)}")
 
-        new_population = survivors.copy()
-        print(f"Best {len(new_population)} choosen, crossovering")
-        number_to_choose = self.survivor_number - (len(self.population) - len(new_population))
-        for i in range(len(new_population)):
-            for j in range(1, len(new_population)-1):
-                (new_bot_1, new_bot_2) = self.random_crossover(new_population[i], new_population[j])
-                if len(new_population) + 1 > number_to_choose:
+        print(f"Best {len(survivors)} choosen, crossovering")
+        for i in range(len(survivors)):
+            for j in range(1, len(survivors)-1):
+                (new_bot_1, new_bot_2) = self.random_crossover(survivors[i], survivors[j])
+                if len(survivors) + 1 > self.new_crossover_bots + self.survivor_number:
                     break
                 new_population.append(new_bot_1)
-                if len(new_population) + 1 > number_to_choose:
+                if len(survivors) + 1 > self.new_crossover_bots + self.survivor_number:
                     break
-                new_population.append(new_bot_2)
+                survivors.append(new_bot_2)
 
-            if len(new_population) + 1 > number_to_choose:
+            if len(survivors) + 1 > self.new_crossover_bots + self.survivor_number:
                 break
-        self.population = new_population.copy()
-        print(f"New population of {len(self.population)}")
+
+        print(f"New population of {len(survivors)}")
+        self.population = survivors.copy()
         print("Mutating")
         for bot in self.population:
             bot.weights = self.mutate_matrix(bot.weights, self.mutation_probability)

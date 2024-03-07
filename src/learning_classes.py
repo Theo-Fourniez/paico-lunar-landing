@@ -60,6 +60,7 @@ class GeneticAlgorithm:
         self.survivor_number = survivor_number
         self.new_crossover_bots = new_crossover_bots
         self.prev_bots = None
+        self.elite_weights_history = []
 
     def reset_population_score(self):
         for bot in self.population:
@@ -212,6 +213,11 @@ class GeneticAlgorithm:
         print("Mutating")
         for bot in self.population:
             bot.weights = self.mutate_matrix(bot.weights, self.mutation_probability)
+
+        # Ajoutez les poids du bot élite à la liste à chaque génération
+        elite_bot = max(elites, key=lambda bot: bot.score)
+        self.elite_weights_history.append(elite_bot.weights)
+        print(f"Elite bot score : {elite_bot.score}")
 
     def mutate_matrix(self, matrix, mutation_rate, mutation_range=(0.25, 2), max_distance=0.35):
         while True:

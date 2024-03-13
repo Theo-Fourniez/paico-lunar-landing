@@ -68,6 +68,15 @@ class GeneticAlgorithm:
     def run(self):
         print(f"Running genetic algorithm with {self.population_size} bots for {self.generations} generations.")
         generation_scores = []
+        # Plot the performance of the genetic algorithm
+        plt.ion()  
+        fig, ax = plt.subplots()
+        ax.set_xlabel('Generation')
+        ax.set_ylabel('Average Score')
+        ax.set_title('Genetic Algorithm Performance')
+        line, = ax.plot([], [], label='Average Score')
+        ax.legend()
+        # Run the genetic algorithm
         for generation in range(self.generations):
             for i in range(len(self.population)): # for each bot calculate fitness (= total reward)
                 bot = self.population[i]
@@ -101,11 +110,16 @@ class GeneticAlgorithm:
                 print(f"Some bot has reached a good score of {max(scores_of_generation)}")
 
             self.evolve(mean_score_of_generation)
-                        
             self.reset_population_score()
+            
+            # Update the plot
+            line.set_data(range(generation + 1), np.array(generation_scores))
+            ax.relim()
+            ax.autoscale_view()
+            plt.pause(0.01)
 
-        # Plotting
-        self.plot_generation_scores(generation_scores)
+        plt.ioff()  
+        plt.show()
         self.env.close()
 
     def play_bot(self, bot):
@@ -259,11 +273,3 @@ class GeneticAlgorithm:
         with open(path, "w") as file:
             file.write(json.dumps(self.to_json()))
             
-    def plot_generation_scores(self, generation_scores):
-        generations = range(self.generations)
-        plt.plot(generations, generation_scores, label='Average Score')
-        plt.xlabel('Generation')
-        plt.ylabel('Average Score')
-        plt.title('Genetic Algorithm Performance')
-        plt.legend()
-        plt.show()

@@ -47,7 +47,7 @@ class Bot:
             
 # a genetic algorithm class
 class GeneticAlgorithm:
-    def __init__(self, env, bot_class: Bot, population_size=100, generations=100, mutation_probability=0.15, survivor_number=20, new_crossover_bots=80, starting_population=None):
+    def __init__(self, env, bot_class: Bot, population_size=100, generations=100, mutation_probability=0.15, survivor_number=30, new_crossover_bots=70, starting_population=None):
         if type(starting_population) is not list and starting_population is not None:
             raise ValueError("starting_population should be a list of Bot objects or None")
         self.env = env
@@ -76,8 +76,10 @@ class GeneticAlgorithm:
         ax.set_title('Genetic Algorithm Performance')
         line, = ax.plot([], [], label='Average Score')
         ax.legend()
+        plt.ioff()  
         # Run the genetic algorithm
         for generation in range(self.generations):
+            print(f"Generation {generation} playing...")
             for i in range(len(self.population)): # for each bot calculate fitness (= total reward)
                 bot = self.population[i]
                 total_reward = self.play_bot(bot)
@@ -90,22 +92,6 @@ class GeneticAlgorithm:
             generation_scores.append(mean_score_of_generation)
             print(f"Generation {generation} finished with average score: {mean_score_of_generation}")
 
-            if generation == 0:
-                self.prev_bots = self.population.copy()
-            if generation > 0:
-                mean_score_of_prev_generation = np.mean([bot.score for bot in self.prev_bots]) if generation > 0 else -999999
-                print(f"Current generation avg = {mean_score_of_generation} | Prev generation avg = {mean_score_of_prev_generation}")
-                if mean_score_of_generation + 20 < mean_score_of_prev_generation: # doesn't work always equal values
-                    print(f"Regressing bad generation ...")
-                    self.population = self.prev_bots.copy()
-                    self.reset_population_score()
-                    continue
-                else:
-                    self.prev_bots = self.population.copy()
-
-            if mean_score_of_generation >= 101:
-                print("🎉 MEAN SCORE IS OVER 100 !!!!!!!!!!!! 🎉")
-                self.write_json_to_file(f"genetic_algorithm_{time.time()}.json")
             if max(scores_of_generation) >= 100:
                 print(f"Some bot has reached a good score of {max(scores_of_generation)}")
 
@@ -116,9 +102,8 @@ class GeneticAlgorithm:
             line.set_data(range(generation + 1), np.array(generation_scores))
             ax.relim()
             ax.autoscale_view()
-            plt.pause(0.01)
+            plt.pause(0.00005)
 
-        plt.ioff()  
         plt.show()
         self.env.close()
 
@@ -198,15 +183,16 @@ class GeneticAlgorithm:
                     break
         return selected
     def evolve(self, mean_score_of_generation):
-        # selection, keep the best scoring bots of the previous and cur gen
-        survivors = self.roulette_select_n_bots(self.population, self.survivor_number)
-        # gradually increase the elite score threshold as the mean score of the generation increases
-        elite_score_threshold = mean_score_of_generation + 10
+        elite_score_threshold = mean_score_of_generation + 100 if mean_score_of_generation < 150 else mean_score_of_generation + 20
         elites = [ bot for bot in self.population if bot.score > elite_score_threshold ]
+        elites = elites[0:self.survivor_number] # cap the max elites to keep
+
         if(len(elites) > 0):
             print(f"Kept {len(elites)} elites (> than {elite_score_threshold} score)")
         
-        elites.extend(survivors)
+        if(len(elites) < self.survivor_number):
+            # selection, keep the best scoring bots of the previous and cur gen
+            elites.extend(self.roulette_select_n_bots(self.population, self.survivor_number - len(elites)))
         print(f"{len(elites)} survived the roulette or are elites, crossovering")
 
         for i in range(len(elites)):
@@ -227,11 +213,6 @@ class GeneticAlgorithm:
         print("Mutating")
         for bot in self.population:
             bot.weights = self.mutate_matrix(bot.weights, self.mutation_probability)
-
-        # Ajoutez les poids du bot élite à la liste à chaque génération
-        elite_bot = max(elites, key=lambda bot: bot.score)
-        self.elite_weights_history.append(elite_bot.weights)
-        print(f"Elite bot score : {elite_bot.score}")
 
     def mutate_matrix(self, matrix, mutation_rate, mutation_range=(0.25, 2), max_distance=0.35):
         while True:

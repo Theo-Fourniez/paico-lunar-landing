@@ -1,4 +1,5 @@
 # a genetic algorithm bot class 
+import datetime
 import json
 import random
 import time
@@ -25,7 +26,8 @@ class Bot:
     
     def to_json(self):
         return {
-            "weights": self.weights.tolist()
+            "weights": self.weights.tolist(),
+            "score": self.score
         }
     
     def read_from_json(self, path):
@@ -47,7 +49,7 @@ class Bot:
             
 # a genetic algorithm class
 class GeneticAlgorithm:
-    def __init__(self, env, bot_class: Bot, population_size=100, generations=100, mutation_probability=0.15, survivor_number=30, new_crossover_bots=70, starting_population=None):
+    def __init__(self, env, bot_class: Bot, population_size=100, generations=200, mutation_probability=0.15, survivor_number=30, new_crossover_bots=70, starting_population=None, save_results=False):
         if type(starting_population) is not list and starting_population is not None:
             raise ValueError("starting_population should be a list of Bot objects or None")
         self.env = env
@@ -60,14 +62,16 @@ class GeneticAlgorithm:
         self.survivor_number = survivor_number
         self.new_crossover_bots = new_crossover_bots
         self.prev_bots = None
-        self.elite_weights_history = []
+        self.save_results = save_results
+        self.created_at = datetime.datetime.now().strftime("%d-%m-%Y_%H:%M:%S")
 
     def reset_population_score(self):
         for bot in self.population:
             bot.score = 0
     def run(self):
         print(f"Running genetic algorithm with {self.population_size} bots for {self.generations} generations.")
-        generation_scores = []
+        generation_mean_scores = [] # keep track of the avg score of each generation for plotting
+        best_bot_scores = [] # keep track of the best bot score of each generation for plotting
         # Plot the performance of the genetic algorithm
         plt.ion()  
         fig, ax = plt.subplots()
@@ -75,6 +79,7 @@ class GeneticAlgorithm:
         ax.set_ylabel('Average Score')
         ax.set_title('Genetic Algorithm Performance')
         line, = ax.plot([], [], label='Average Score')
+        lineBestBot, = ax.plot([], [], label='Best Bot Score')
         ax.legend()
         plt.ioff()  
         # Run the genetic algorithm
@@ -89,22 +94,37 @@ class GeneticAlgorithm:
             
             scores_of_generation = [bot.score for bot in self.population]
             mean_score_of_generation = np.mean(scores_of_generation)
-            generation_scores.append(mean_score_of_generation)
+            
             print(f"Generation {generation} finished with average score: {mean_score_of_generation}")
 
-            if max(scores_of_generation) >= 100:
+            # Update the plot data
+            generation_mean_scores.append(mean_score_of_generation)
+            best_bot_scores.append(max(scores_of_generation))
+
+            if max(scores_of_generation) >= 250:
                 print(f"Some bot has reached a good score of {max(scores_of_generation)}")
 
             self.evolve(mean_score_of_generation)
-            self.reset_population_score()
+            if generation != self.generations - 1: # keep the scores of the last generation
+                self.reset_population_score()
             
             # Update the plot
-            line.set_data(range(generation + 1), np.array(generation_scores))
+            rangePlot = range(generation + 1)
+            line.set_data(rangePlot, np.array(generation_mean_scores))
+            lineBestBot.set_data(rangePlot, np.array(best_bot_scores))
             ax.relim()
             ax.autoscale_view()
             plt.pause(0.00005)
+    
+        if self.save_results:
+            path = f"out/{self.created_at}_{round(np.mean(scores_of_generation), 1)}"
+            os.mkdir(path)
+            plt.savefig(f"{path}/result.png")
+            self.write_json_to_file(f"{path}/result.json")
+            plt.close()
+        else:
+            plt.show()
 
-        plt.show()
         self.env.close()
 
     def play_bot(self, bot):
@@ -183,10 +203,12 @@ class GeneticAlgorithm:
                     break
         return selected
     def evolve(self, mean_score_of_generation):
-        elite_score_threshold = mean_score_of_generation + 100 if mean_score_of_generation < 150 else mean_score_of_generation + 20
+        elite_score_threshold = mean_score_of_generation + 50 if mean_score_of_generation < 150 else mean_score_of_generation + 20
         elites = [ bot for bot in self.population if bot.score > elite_score_threshold ]
-        elites = elites[0:self.survivor_number] # cap the max elites to keep
-
+        toSave = [ bot for bot in self.population if bot.score > 300 ]
+        if(len(toSave) > 0):
+            for bot in toSave:
+                bot.write_to_json(f"bot_{self.created_at}_{round(np.mean([bot.score for bot in self.population]), 1)}")
         if(len(elites) > 0):
             print(f"Kept {len(elites)} elites (> than {elite_score_threshold} score)")
         

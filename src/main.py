@@ -21,28 +21,41 @@ def run_random_agent():
     print("Terminating environment")
     env.close()
 
-def run_genetic_algorithm(env, bot, population_size=100, generations=1000, mutation_probability=0.15, survivor_number=30, new_crossover_bots=70):
-    genetic_algorithm = GeneticAlgorithm(env, bot, population_size, generations, mutation_probability, survivor_number, new_crossover_bots)
-    genetic_algorithm.run()
-    return genetic_algorithm
-
 def run_default_genetic_algorithm():
     genetic_algorithm = GeneticAlgorithm(env, Bot)
     genetic_algorithm.run()
     return genetic_algorithm
 
-def run_multiple_random_genetic_algorithm():
-    random_id = random.randint(1, 100000)
+def run_multiple_genetic_algorithm():
     for i in range(500):
-        genetic_algorithm = run_genetic_algorithm(env, Bot, population_size=100, generations=100, mutation_probability=0.25, survivor_number=30, new_crossover_bots=70)
-
+        print(i)
+        genetic_algorithm = GeneticAlgorithm(env, Bot, save_results=True)
+        genetic_algorithm.run()
+    
 def run_default_genetic_algorithm_with_json_bot(path):
+    env = gym.make("LunarLander-v2", render_mode="human") # remove render_mode="human" to run without visualization
+    env.reset()
     bot = Bot(env)
     bot.read_from_json(path)
-    print(bot.weights)
-    genetic_algorithm = GeneticAlgorithm(env, Bot, generations=100, population_size=100, survivor_number=35, new_crossover_bots=65, mutation_probability=0.15, starting_population=[bot])
-    genetic_algorithm.run()
-    return genetic_algorithm
+    print(f"bot score {bot.score}")
+    observation, reward, terminated, truncated, info = env.step(0)
+    for _ in range(5555):
+        bot.act(observation)
+        observation, reward, terminated, truncated, info = bot.step()
+        if terminated or truncated:
+            print(f"Finished with reward {reward} and info {info}")
+            observation, info = env.reset()
+            return
+    
+
+def get_best_bot_from_ga(path):
+    ga = GeneticAlgorithm(env, Bot)
+    ga.read_from_json(path)
+    print(ga.population)
+    return ga.population[0]
+
+#run_default_genetic_algorithm_with_json_bot('out/bot_18-03-2024_18:56:32_192.3.json')
+run_multiple_genetic_algorithm()
 #run_genetic_algorithm()
-run_default_genetic_algorithm()
+#run_default_genetic_algorithm()
 #run_default_genetic_algorithm_with_json_bot("best_bot_1709244959.402303.json")
